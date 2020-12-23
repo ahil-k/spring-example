@@ -1,0 +1,4 @@
+- [ ] Email validate
+- [ ] Password validate
+- [ ] Junit Test
+- [ ] Mysql Adapter
