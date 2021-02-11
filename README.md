@@ -17,47 +17,76 @@ mvn spring-boot:repackage
 # copy war to /usr/local/tomcat
 ```
 
+## Tomcat
+
+https://linuxize.com/post/how-to-install-tomcat-9-on-centos-7/
 
 ```bash
-ssh-keygen 
-cat ~/.ssh/id_rsa.pub 
-yum install git -y
-git clone git@gitlab.eng.vmware.com:kahil/spring-starter.git
-cd spring-starter/
-  
-yum install java-11-openjdk-devel wget -y
+yum install java-11-openjdk-devel wget git -y
 wget https://www-us.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz -P /tmp
 cd /tmp/
 sudo tar xf apache-maven-3.6.3-bin.tar.gz -C /opt
 sudo ln -s /opt/apache-maven-3.6.3 /opt/maven
 
-vi /etc/profile.d/maven.sh
-
-chmod +x /etc/profile.d/maven.sh
-source /etc/profile.d/maven.sh
-
+cat > /etc/profile.d/maven.sh <<EOF
 export M2_HOME=/opt/maven
 export MAVEN_HOME=/opt/maven
 export PATH=${M2_HOME}/bin:/${PATH}
 export JAVA_HOME=/usr/lib/jvm/jre-11-openjdk
-export MYSQL_HOST=10.185.241.244
+export MYSQL_HOST={{MYSQL_HOST}}
+EOF
+
+chmod +x /etc/profile.d/maven.sh
+source /etc/profile.d/maven.sh
 
 echo $JAVA_HOME
-
 mvn --version
 
-mvn clean install -DskipTests
+
+ssh-keygen 
+cat ~/.ssh/id_rsa.pub
+git clone git@gitlab.eng.vmware.com:kahil/spring-starter.git
+cd spring-starter/
+
+mvn clean install -DskipTests spring-boot:repackage
 ```
 
-
+## MySQL
 
 
 ```bash
 sudo mysql --password
+sudo grep 'temporary password' /var/log/mysqld.log
 
-mysql> create database db_example; -- Creates the new database
-mysql> SET GLOBAL validate_password.policy=LOW;
-mysql> create user 'springuser'@'%' identified by 'ThePassword'; -- Creates the user
-mysql> grant all on db_example.* to 'springuser'@'%'; -- Gives all privileges to the new user on the newly created database
+SET GLOBAL validate_password.policy=LOW;
+SET GLOBAL validate_password.length = 6;
+SET GLOBAL validate_password.number_count = 0;
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'root123';
 
+
+mysql> 
+create database user_db; -- Creates the new database
+SET GLOBAL validate_password.policy=LOW;
+create user 'springuser'@'localhost' identified by 'ThePassword'; -- Creates the user
+grant all privileges on *.* to 'springuser'@'localhost';
+FLUSH PRIVILEGES;
+
+CREATE USER 'springuser'@'%' IDENTIFIED BY 'ThePassword';
+GRANT ALL PRIVILEGES ON *.* TO 'springuser'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+
+
+ALTER USER 'springuser'@'localhost' IDENTIFIED WITH mysql_native_password BY 'ThePassword';
+FLUSH PRIVILEGES;
 ```
+
+```bash
+worker,Admin!23
+```
+
+
+# Problems:
+
+- mysql bind address has to be set to 0.0.0.0
+- tomcat is not picking ip from env variables, so needs to be manually set in app.yml and rebuilt
